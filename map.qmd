@@ -1,0 +1,84 @@
+---
+title: "Map"
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+```
+
+```{r}
+#| message: false
+mallards <- read_csv("data/mallards.csv")
+print(mallards, n = 10)
+```
+
+```{r}
+# Count rows per duck, sorted from most to least fixes
+mallards |>
+  count(duck_id, sort = TRUE)
+```
+
+```{r}
+# Summarize minimum and maximum latitude and longitude
+mallards |>
+  summarize(
+    min_lat = min(lat, na.rm = TRUE),
+    max_lat = max(lat, na.rm = TRUE),
+    min_long = min(long, na.rm = TRUE),
+    max_long = max(long, na.rm = TRUE)
+  )
+```
+
+```{r}
+#| cache: true
+#| message: false
+mallards <- read_csv("data/mallards.csv") |>
+  mutate(
+    timestamp = as_datetime(timestamp),
+    month = month(timestamp, label = TRUE),
+    month_num = month(timestamp),
+    year = year(timestamp),
+    # Group numeric months into seasons, then order levels chronologically
+    season = case_when(
+      month_num %in% 3:5 ~ "Spring",
+      month_num %in% 6:8 ~ "Summer",
+      month_num %in% 9:11 ~ "Autumn",
+      month_num %in% c(12, 1, 2) ~ "Winter"
+    ) |>
+      factor(levels = c("Spring", "Summer", "Autumn", "Winter"))
+  )
+
+# Save the processed tibble (preserving factor levels) for other pages
+write_rds(mallards, "data/mallards.rds")
+```
+
+```{r}
+# Load country borders as sf polygons
+europe <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Filter GPS fixes to the region of interest
+mallards_roi <- mallards |>
+  filter(between(lat, 47, 55), between(long, 8, 25))
+
+ggplot() +
+  geom_sf(data = europe, fill = "gray95", color = "gray60", linewidth = 0.3) +
+  # Hide the legend since 52 duck IDs would crowd out the map
+  geom_point(
+    data = mallards_roi,
+    aes(x = long, y = lat, color = duck_id),
+    size = 0.4,
+    alpha = 0.4,
+    show.legend = FALSE
+  ) +
+  coord_sf(xlim = c(8, 25), ylim = c(47, 55), expand = FALSE) +
+  labs(
+    title = "Mallard GPS Fixes Across Central and Eastern Europe",
+    subtitle = "83,271 tracking locations from 52 individual mallards",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  theme_minimal()
+```

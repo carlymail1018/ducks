@@ -1,0 +1,52 @@
+---
+title: "Seasons"
+---
+
+```{r}
+#| message: false
+library(tidyverse)
+library(ggridges)
+```
+
+```{r}
+mallards <- read_rds("data/mallards.rds")
+```
+
+```{r}
+# Count GPS fixes per calendar month and display all 12 rows
+mallards |>
+  count(month) |>
+  print(n = 12)
+```
+
+```{r}
+# Summarize speed distribution and count missing values
+mallards |>
+  summarize(
+    min = min(speed, na.rm = TRUE),
+    q25 = quantile(speed, 0.25, na.rm = TRUE),
+    median = median(speed, na.rm = TRUE),
+    mean = mean(speed, na.rm = TRUE),
+    q75 = quantile(speed, 0.75, na.rm = TRUE),
+    max = max(speed, na.rm = TRUE),
+    n_na = sum(is.na(speed))
+  )
+```
+
+```{r}
+#| message: false
+mallards |>
+  # Keep fixes at or below 30 m/s (also drops NA speeds)
+  filter(speed <= 30) |>
+  # Reverse factor order on y so January appears at the top and December at the bottom
+  ggplot(aes(x = speed, y = fct_rev(month), fill = season)) +
+  geom_density_ridges(alpha = 0.7) +
+  labs(
+    title = "Mallard Movement Speed by Month",
+    subtitle = "GPS fixes with speeds at or below 30 m/s",
+    x = "Speed (m/s)",
+    y = "Month",
+    fill = "Season"
+  ) +
+  theme_minimal()
+```
